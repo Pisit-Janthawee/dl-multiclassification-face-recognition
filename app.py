@@ -25,7 +25,7 @@ import numpy as np
 import torch
 import torch.nn.functional as F
 from facenet_pytorch import MTCNN, InceptionResnetV1
-from PIL import Image
+from PIL import Image, ImageOps
 
 HERE = Path(__file__).resolve().parent
 SETTINGS_FILE = Path(os.environ.get('FACE_SETTINGS', HERE / 'models' / 'settings.json'))
@@ -41,7 +41,9 @@ MODEL = InceptionResnetV1(pretrained='vggface2').eval().to(DEVICE)
 
 def find_face(image):
     """Cropped face as a uint8 array (160 x 160 x 3), or None if no face is found."""
-    face = DETECTOR(Image.fromarray(np.asarray(image)).convert('RGB'))
+    photo = Image.fromarray(np.asarray(image)).convert('RGB')
+    photo.thumbnail((1600, 1600))                    # large camera photos: faster, same face
+    face = DETECTOR(photo)
     return None if face is None else face.permute(1, 2, 0).numpy().astype(np.uint8)
 
 
@@ -51,7 +53,7 @@ def embed(faces):
         return F.normalize(MODEL(x.to(DEVICE)), dim=1).cpu().numpy()
 
 
-GALLERY_FACES = {n: find_face(Image.open(FRIENDS_DIR / f'{n.lower()}.png')) for n in FRIENDS if (FRIENDS_DIR / f'{n.lower()}.png').exists()}
+GALLERY_FACES = {n: find_face(ImageOps.exif_transpose(Image.open(FRIENDS_DIR / f'{n.lower()}.png'))) for n in FRIENDS if (FRIENDS_DIR / f'{n.lower()}.png').exists()}
 GALLERY = embed(list(GALLERY_FACES.values())) if GALLERY_FACES else None
 
 
