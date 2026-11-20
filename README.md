@@ -16,7 +16,7 @@ Face recognition | Face verification | Open-set recognition | Data augmentation 
 
 **Question:** can a model tell my 4 friends apart?
 
-**Answer:** on augmented copies of their graduation photos, perfectly (100 % for Eigenfaces + SVM and a small CNN). On **88 new photos of them** (another day and place, head turned up to full profile), the CNN is right on only **53 %** and Eigenfaces on 33 %, where always answering "Mark" would already get 45 %. The models learned the 4 photos, not the 4 faces.
+**Answer:** on augmented copies of their graduation photos, perfectly (100 % for Eigenfaces + SVM and a small CNN). On **88 new photos of them** (another day and place, head turned up to full profile), the CNN is right on only **52 %** and Eigenfaces on 38 %, where always answering "Mark" would already get 45 %. The models learned the 4 photos, not the 4 faces.
 
 ![augmented copies](assets/png/04_augmented.png)
 
@@ -30,15 +30,15 @@ Face recognition | Face verification | Open-set recognition | Data augmentation 
 
 **Question:** can a face embedding recognise my friends on new photos, from one enrollment photo each, and turn strangers away?
 
-**Answer:** yes. FaceNet, enrolled from one graduation photo per friend with a threshold chosen on other people, names **95.5 % of the 88 new photos** correctly and turns away **99.7 %** of strangers.
+**Answer:** yes. FaceNet, enrolled from one graduation photo per friend with a threshold chosen on other people, names **94.3 % of the 88 new photos** correctly and turns away **99.7 %** of strangers.
 
 | | Unseen photos named correctly | Strangers turned away | To add a friend |
 |---|---|---|---|
 | Small CNN + probability cut-off | 0 % | 57.0 % | collect photos, retrain |
-| FaceNet + 1 photo per friend | 95.5 % | 99.7 % | add one photo |
+| FaceNet + 1 photo per friend | 94.3 % | 99.7 % | add one photo |
 
-- **By head turn** → frontal 98.2 %, turned 94.7 %, side view 85.7 % named correctly
-- **The only mistakes** → 4 of Aum's 10 photos named "Dong"; Dong, Mark and TJ are recognised on every photo
+- **By head turn** → frontal 96.4 %, turned 95.0 %, side view 84.6 % named correctly
+- **The only mistakes** → 5 of Aum's 10 photos named "Dong"; Dong, Mark and TJ are recognised on every photo
 - **Why** → Dong and Aum's enrollment photos are already at similarity **0.57**, above the 0.53 "same person" threshold: the same studio, gown, light and pose pull two different people together
 - **The CNN's cut-off** → to accept 95 % of the copies it needs probability ≥ 0.9997; no new photo of my friends reaches that, but 43 % of strangers do
 
@@ -59,7 +59,7 @@ Face recognition | Face verification | Open-set recognition | Data augmentation 
 ## [1/8] Data
 
 - **My friends** → `friends/`: one graduation photo each (Dong, Aum, TJ, Mark), 512 × 512, all from the same studio session; MTCNN finds every face (confidence ≥ 0.9999) and crops it to 160 × 160
-- **My friends, unseen** → `rand_images/`: 88 new photos (Dong 24, Aum 10, TJ 14, Mark 40) from another day and place, `.jpg` / `.JPG` / `.png`, up to 6000 × 4000; each face is found, cropped and resized to 160 × 160 by MTCNN after applying the camera's rotation tag (without it, 15 camera photos had no face found); 55 frontal, 19 turned, 14 side views
+- **My friends, unseen** → `rand_images/`: 88 new photos (Dong 24, Aum 10, TJ 14, Mark 40) from another day and place, standardised like `friends/`: camera rotation applied, face found by MTCNN and framed the same way as the graduation photos, 512 × 512 PNG, named `<friend>_<nn>.png` (`rename_map.csv` lists the original file of each; 14 photos needed edge padding because the face was near the border); 55 frontal, 20 turned, 13 side views
 - **Strangers** → [Labeled Faces in the Wild](https://www.kaggle.com/datasets/jessicali9530/lfw-dataset) · 13,233 news photos of 5,749 public figures · not stored in this repository (mounted on Kaggle, or downloaded by scikit-learn)
 - **LFW long tail** → 4,069 people have a single photo, 12 have 50 or more (George W Bush: 530); only 1 near-duplicate pair
 
@@ -76,8 +76,8 @@ Face recognition | Face verification | Open-set recognition | Data augmentation 
 ## [3/8] The classic classifier
 
 - **Training data** → 150 / 25 / 25 augmented copies per friend for train / validation / test (random rotation ±10°, shift ±6 %, zoom ±10 %, brightness and contrast ±25 %, mirror), different random draws per split
-- **Eigenfaces + SVM** → 64 × 64 grey faces → PCA (100 components, whitened) → RBF SVM → 100 % on copies, 33 % on unseen photos
-- **Small CNN** → 4 convolution blocks, flattened 6 × 6 map, dropout, softmax; normalised input → 100 % on copies, 53 % on unseen photos
+- **Eigenfaces + SVM** → 64 × 64 grey faces → PCA (100 components, whitened) → RBF SVM → 100 % on copies, 38 % on unseen photos
+- **Small CNN** → 4 convolution blocks, flattened 6 × 6 map, dropout, softmax; normalised input → 100 % on copies, 52 % on unseen photos
 
 ![eigenfaces](assets/png/04_eigenfaces.png)
 
@@ -129,7 +129,7 @@ Face recognition | Face verification | Open-set recognition | Data augmentation 
 |---|---|
 | `face_verification.ipynb` | full notebook (Kaggle-ready) |
 | `friends/` | the four enrollment photos (Dong, Aum, TJ, Mark) |
-| `rand_images/` | new, unseen photos of the four friends (the real test), with `manifest.json` |
+| `rand_images/` | new, unseen photos of the four friends (the real test): 512 × 512 PNG like `friends/`, with `manifest.json` and `rename_map.csv` |
 | `app.py`, `requirements.txt` | Gradio app: "Who is this?" and "Same person?" |
 | `models/settings.json` | threshold chosen in the notebook |
 | `assets/png/` · `assets/drawio/` | figures (PNG) · editable draw.io diagram |
