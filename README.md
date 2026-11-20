@@ -1,79 +1,84 @@
-# Face Recognition: from a 4-Person Classifier to Face Verification
+# Face Recognition: My 4 Friends, a Classifier, and Face Verification
+
+![My four friends](assets/png/02_friends.png)
+
+Face recognition | Face verification | Open-set recognition | Data augmentation | Eigenfaces (PCA) | SVM | CNN | Face embeddings | FaceNet | MTCNN | Transfer learning | Cosine similarity | ROC | False accept rate | Equal error rate | Occlusion map | PyTorch | Gradio
 
 ![What this project builds](assets/png/face_overview.png)
 
-Face recognition | Face verification | Open-set recognition | Eigenfaces (PCA) | SVM | CNN | Face embeddings | FaceNet | Transfer learning | Cosine similarity | ROC | False accept rate | Equal error rate | Occlusion map | PyTorch | Gradio
-
 ## Objective
 
-- **Problem** → most "face recognition" projects train a classifier for a few people and report high accuracy, but a classifier can only pick from its list: shown anyone else, it still answers with one of its names
-- **Why this repo** → build that classic classifier, show where it breaks, then do what real systems do: turn each face into an embedding and decide "same person or not" by distance, tested only on people the model never saw
-- **Real-world use** → phone unlock, passport gates, photo-library tagging: compare a new face with one enrolled photo, with "no match" as a normal answer
+- **Problem** → a CNN that recognises my four friends (Dong, Aum, TJ, Mark) from one graduation photo each is easy to build and scores 100 %, but it can only pick from its list: shown anyone else, it still answers with one of their names
+- **Why this repo** → build that classifier, show where it breaks, then do what real systems do: enroll each friend from their one photo as an embedding, and answer "same person", "which friend" or "unknown" by distance
+- **Real-world use** → phone unlock, door access, photo tagging: one enrollment photo per person, no retraining, and "no match" as a normal answer
 
 ## Highlights
 
-**Question:** can a model tell 4 people apart?
+**Question:** can a model tell my 4 friends apart?
 
-**Answer:** easily. On the 4 most photographed people in LFW, Eigenfaces + SVM gets 84.5 % of the test photos right and a small CNN 98.1 %.
+**Answer:** on paper, perfectly: Eigenfaces + SVM and a small CNN both get 100 % of the test images right. But with one photo per friend, every training and test image is an augmented copy (rotated, shifted, zoomed, re-lit, mirrored) of that same photo, so 100 % only means "recognises this photo again".
 
-![classifier](assets/png/04_classifier.png)
+![augmented copies](assets/png/04_augmented.png)
 
-**Question:** what does that classifier say about a stranger?
+**Question:** what does that classifier say about strangers?
 
-**Answer:** it always names one of its 4 people, and for **48 % of 1,000 strangers** it is at least 90 % sure, including women it calls "George W Bush" with 100 % confidence. A closed list has no "nobody" answer.
+**Answer:** it names every one of 1,000 strangers (LFW public figures) as one of my friends, and mostly as the same one: **88 % become "Mark"**, 84 % with at least 90 % confidence.
 
 ![strangers](assets/png/05_strangers.png)
 
-**Question:** can face embeddings tell "same person" from "different people" for people never seen in training?
+**Question:** can a face embedding recognise my friends from one photo each and turn strangers away?
 
-**Answer:** yes, almost perfectly with a face-trained model; generic image features can't.
+**Answer:** yes. FaceNet, with one enrollment photo per friend and a threshold chosen on other people, names all test copies correctly and turns away **99.7 %** of strangers. The CNN with a confidence cut-off turns away 57 %.
 
-| Embedding (test pairs of unseen people) | AUC | Equal error rate | Same-person pairs accepted at the threshold |
+| | Friends' copies named correctly | Strangers turned away | To add a friend |
 |---|---|---|---|
-| FaceNet (trained on faces) | 0.999 | 0.8 % | 97.1 % at 0.10 % false accepts |
-| ResNet-18 (trained on ImageNet objects) | 0.779 | 29.7 % | 1.8 % |
-| Eigenfaces (PCA) | 0.695 | 36.2 % | 7.9 % |
+| Small CNN + probability cut-off | 95.0 % | 57.0 % | collect photos, retrain |
+| FaceNet + 1 photo per friend | 100 % | 99.7 % | add one photo |
+
+**Watch out:** FaceNet puts **Dong and Aum at similarity 0.57**, above the 0.53 "same person" threshold. The same studio, gown, light and pose pull two different people together, so a 1-to-1 check "is this Aum?" would accept Dong.
+
+![friends open set](assets/png/08_friends_open_set.png)
+
+**Question:** how well does it tell "same person" from "different people" for people it never saw?
+
+**Answer:** my friends have one photo each, so this is measured on LFW people, split by person: FaceNet almost perfectly, generic image features far worse.
+
+| Embedding (test pairs of unseen LFW people) | AUC | Equal error rate | Same-person pairs accepted at the threshold |
+|---|---|---|---|
+| FaceNet (trained on faces) | 0.999 | 1.1 % | 96.0 % at 0.07 % false accepts |
+| ResNet-18 (trained on ImageNet objects) | 0.776 | 29.3 % | 6.6 % |
+| Eigenfaces (PCA) | 0.730 | 33.0 % | 10.0 % |
 
 ![verification](assets/png/07_verification.png)
 
-**Question:** can it recognise the 4 people and turn strangers away?
-
-**Answer:** with one enrollment photo per person and the threshold from validation, FaceNet names all known test photos correctly and turns away 98.9 % of strangers. The CNN, even with a confidence cut-off, turns away only 51.6 %.
-
-| | Known photos named correctly | Strangers turned away | To add a person |
-|---|---|---|---|
-| Small CNN + probability cut-off | 94.2 % | 51.6 % | collect photos, retrain |
-| FaceNet + 1 photo per person | 100 % | 98.9 % | add one embedding |
-
 ## [1/8] Data
 
-- **Dataset** → [Labeled Faces in the Wild](https://www.kaggle.com/datasets/jessicali9530/lfw-dataset) · 13,233 news photos of 5,749 public figures · not stored in this repository (mounted on Kaggle, or downloaded by scikit-learn)
-- **Long tail** → 4,069 people have a single photo, 12 have 50 or more (George W Bush: 530) → fine for "same or different?", poor for a classifier per person
-- **Near-duplicates** → a difference hash finds only 1 near-identical pair of the same person; "same person" test pairs skip it
-
-![samples](assets/png/02_samples.png)
+- **My friends** → `friends/`: one graduation photo each (Dong, Aum, TJ, Mark), 512 × 512, all from the same studio session; MTCNN finds every face (confidence ≥ 0.9999) and crops it to 160 × 160
+- **Strangers** → [Labeled Faces in the Wild](https://www.kaggle.com/datasets/jessicali9530/lfw-dataset) · 13,233 news photos of 5,749 public figures · not stored in this repository (mounted on Kaggle, or downloaded by scikit-learn)
+- **LFW long tail** → 4,069 people have a single photo, 12 have 50 or more (George W Bush: 530); only 1 near-duplicate pair
 
 ## [2/8] Run on Kaggle
 
 - **Import** → Create → Import Notebook → upload `face_verification.ipynb`
 - **Input** → dataset `jessicali9530/lfw-dataset` (found anywhere under `/kaggle/input`; without it, LFW is downloaded with scikit-learn)
+- **My friends' photos** → downloaded from this repository (`friends/`) when the notebook starts
 - **Accelerator** → GPU T4 (about 5 minutes); a CPU works but is slower
-- **Internet** → On: `pip install --no-deps facenet-pytorch`, FaceNet and ResNet-18 weights
+- **Internet** → On: `pip install --no-deps facenet-pytorch`, FaceNet and ResNet-18 weights, the friends' photos
 - **Settings** → top cell; `SAVE_FIGURES = False`, `LAUNCH_APP = False` → nothing is written except `settings.json` (the threshold for the app), no app is started
 - **Pictures** → the notebook links its explanation pictures from this repository instead of embedding them, so it stays small
 
 ## [3/8] The classic classifier
 
-- **People** → the 4 most photographed (Bush, Powell, Blair, Rumsfeld), split 70 / 10 / 20 stratified; 51 % of the photos are Bush
-- **Eigenfaces + SVM** → 64 × 64 grey faces → PCA (100 components, whitened) → RBF SVM → 84.5 %
-- **Small CNN** → 4 convolution blocks, flattened 6 × 6 map, dropout, softmax; normalised input, left-right flips (a mirrored face is still a valid face) → 98.1 %
+- **Training data** → 150 / 25 / 25 augmented copies per friend for train / validation / test (random rotation ±10°, shift ±6 %, zoom ±10 %, brightness and contrast ±25 %, mirror), different random draws per split
+- **Eigenfaces + SVM** → 64 × 64 grey faces → PCA (100 components, whitened) → RBF SVM → 100 %
+- **Small CNN** → 4 convolution blocks, flattened 6 × 6 map, dropout, softmax; normalised input → 100 %
 
 ![eigenfaces](assets/png/04_eigenfaces.png)
 
 ## [4/8] Why a classifier is not recognition
 
-- **Closed set** → softmax probabilities sum to 1, so every face lands in one of the 4 regions; nothing can be "unknown"
-- **Strangers** → all 1,000 named as one of the 4; 48 % with probability ≥ 0.9
+- **Closed set** → softmax probabilities sum to 1, so every face lands on one of the 4 friends; nothing can be "unknown"
+- **Strangers** → all 1,000 named as a friend: 88.4 % "Mark", 9.7 % "Dong", 1.2 % "TJ", 0.7 % "Aum"
 - **New people** → each one needs photos and retraining
 
 ![closed vs open set](assets/png/m_closed_vs_open.png)
@@ -88,31 +93,37 @@ Face recognition | Face verification | Open-set recognition | Eigenfaces (PCA) |
 
 ## [6/8] Honest verification
 
-- **Split by person** → everyone with ≥ 2 photos except the 4 classifier people, split 50 / 50 into validation people (838) and test people (838)
-- **Pairs** → 3,000 same-person + 3,000 different-person pairs per half, near-duplicates skipped
-- **Threshold** → chosen on validation so only 0.1 % of different-person pairs pass (cosine 0.534), then applied to test unchanged → test false accepts 0.10 %, same-person pairs accepted 97.1 %
+- **Split by person** → every LFW person with ≥ 2 photos, split 50 / 50 into validation people and test people
+- **Pairs** → 3,000 same-person pairs (each person equally likely, so Bush's 530 photos don't dominate) + 3,000 different-person pairs per half, near-duplicates skipped
+- **Threshold** → chosen on validation so only 0.1 % of different-person pairs pass (cosine 0.53), then applied to test unchanged → test false accepts 0.07 %, same-person pairs accepted 96.0 %
 - **Two errors** → a false accept lets a stranger in, a false reject makes the owner try again; the application picks the balance (`TARGET_FAR`)
 
 ![FAR and FRR](assets/png/m_far_frr.png)
 
 ## [7/8] Where does it look?
 
-- **Occlusion test** → slide a grey 20 × 20 square over the face and measure the drop in similarity
-- **Result** → the eyes, the nose and the area between the eyebrows matter most (for some faces also the mouth); the background and hair hardly matter
+- **Occlusion test** → slide a grey 20 × 20 square over a friend's test copy and measure the drop in similarity to their enrollment photo
+- **Result** → the eyes, the nose and the area between the eyebrows matter most; the background, the hair and the gown hardly matter
 
 ![occlusion](assets/png/09_occlusion.png)
 
 ## [8/8] App, limitations and next steps
 
-- **App** → `pip install -r requirements.txt` → `pip install --no-deps facenet-pytorch` → `python app.py`: two photos in, the faces found with MTCNN, "same person" or "different / unknown" out; threshold from `models/settings.json` (written by the notebook), else 0.53
+- **App** → `pip install -r requirements.txt` → `pip install --no-deps facenet-pytorch` → `python app.py`
+  - **Who is this?** → one photo in → Dong, Aum, TJ, Mark or "unknown", with the similarity to each friend
+  - **Same person?** → two photos in → "same person" or "different / unknown"
+  - faces found with MTCNN; threshold from `models/settings.json` (written by the notebook), else 0.53
+- **One photo per friend** → the friends' test images are copies of the enrollment photo, so their numbers show the method, not real-world accuracy; new photos of them (another day, another light) would be the real test
+- **Same session** → all four photos share the studio, gown and light, which already pushes Dong and Aum above the threshold; enroll from photos taken in different settings
 - **Who is in LFW** → news photos of public figures, reported to be mostly men with lighter skin; error rates for other groups can be higher, and LFW has no labels to measure that
-- **Easy setting** → mostly frontal, well-lit, roughly aligned faces; real cameras see harder ones
-- **Consent** → faces are biometric data: use public research data or people who agreed. This repository used to contain private photos of real people; they were removed
-- **Next steps** → fine-tune an embedding with ArcFace on a larger set, evaluate on harder benchmarks (cross-pose, cross-age), and measure errors per group on a dataset with demographic labels
+- **Consent** → faces are biometric data: only use photos of people who agreed to it
+- **Next steps** → collect a few more photos of each friend (different days), set the threshold on them, fine-tune an embedding with ArcFace, and test on harder benchmarks (cross-pose, cross-age)
 
 | Path | Content |
 |---|---|
 | `face_verification.ipynb` | full notebook (Kaggle-ready) |
-| `app.py`, `requirements.txt` | Gradio verification app |
+| `friends/` | the four enrollment photos (Dong, Aum, TJ, Mark) |
+| `app.py`, `requirements.txt` | Gradio app: "Who is this?" and "Same person?" |
+| `models/settings.json` | threshold chosen in the notebook |
 | `assets/png/` · `assets/drawio/` | figures (PNG) · editable draw.io diagram |
-| `arch/` | the original 4-person CNN notebooks and scripts (private photos removed from the outputs) |
+| `arch/` | the original notebooks, scripts, photos (`Images/`) and app screenshot |
