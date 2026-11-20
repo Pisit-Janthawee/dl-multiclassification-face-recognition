@@ -1,0 +1,12 @@
+torch>=2.2
+torchvision>=0.17
+numpy
+pandas
+scikit-learn
+matplotlib
+seaborn
+pillow
+tqdm
+gradio>=4
+# facenet-pytorch pins old torch versions; install it without dependencies:
+#   pip install --no-deps facenet-pytorch

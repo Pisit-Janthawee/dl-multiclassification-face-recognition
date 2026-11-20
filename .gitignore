@@ -1,0 +1,8 @@
+# data and outputs are never committed (LFW is downloaded or mounted on Kaggle)
+data/
+lfw_data/
+models/*.pt
+*.csv
+.ipynb_checkpoints/
+__pycache__/
+flagged/
